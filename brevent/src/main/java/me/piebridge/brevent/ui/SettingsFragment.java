@@ -12,6 +12,10 @@ import android.preference.PreferenceCategory;
 import android.preference.PreferenceFragment;
 import android.preference.PreferenceScreen;
 import android.preference.SwitchPreference;
+import android.text.TextUtils;
+import android.util.Log;
+
+import java.text.DecimalFormat;
 
 import me.piebridge.brevent.BuildConfig;
 import me.piebridge.brevent.R;
@@ -33,17 +37,15 @@ public class SettingsFragment extends PreferenceFragment
     public static final String SHOW_FRAMEWORK_APPS = "show_framework_apps";
     public static final boolean DEFAULT_SHOW_FRAMEWORK_APPS = false;
 
-    public static final String BREVENT_ALLOW_RECEIVER = "brevent_allow_receiver";
-    public static final boolean DEFAULT_BREVENT_ALLOW_RECEIVER = false;
-
     public static final String IS_PLAY = "is_play";
+
+    private static final String FRAGMENT_DONATE = "donate";
 
     private PreferenceCategory breventExperimental;
 
     private SwitchPreference preferenceOptimizeVpn;
     private SwitchPreference preferenceAbnormalBack;
     private SwitchPreference preferenceAllowRoot;
-    private SwitchPreference preferenceAllowReceiver;
     private SwitchPreference preferenceDonation;
 
     private Preference preferenceStandbyTimeout;
@@ -71,8 +73,6 @@ public class SettingsFragment extends PreferenceFragment
                 .findPreference(BreventConfiguration.BREVENT_ABNORMAL_BACK);
         preferenceAllowRoot = (SwitchPreference) preferenceScreen
                 .findPreference(BreventConfiguration.BREVENT_ALLOW_ROOT);
-        preferenceAllowReceiver = (SwitchPreference) preferenceScreen
-                .findPreference(BREVENT_ALLOW_RECEIVER);
 
         preferenceDonation = (SwitchPreference) preferenceScreen.findPreference(SHOW_DONATION);
 
@@ -89,18 +89,51 @@ public class SettingsFragment extends PreferenceFragment
             preferenceOptimizeVpn.setEnabled(false);
             preferenceAbnormalBack.setEnabled(false);
             preferenceAllowRoot.setEnabled(false);
-            preferenceAllowReceiver.setEnabled(false);
         } else {
             ((PreferenceCategory) preferenceScreen.findPreference("brevent_about"))
                     .removePreference(preferenceDonation);
+            preferenceOptimizeVpn.setSummary(R.string.brevent_optimize_vpn_label_debug);
+            preferenceAbnormalBack.setSummary(R.string.brevent_abnormal_back_label_debug);
+            preferenceAllowRoot.setSummary(R.string.brevent_allow_root_label_debug);
         }
-        if (!sharedPreferences.getBoolean(BreventConfiguration.BREVENT_ALLOW_ROOT, false)) {
-            breventExperimental.removePreference(preferenceAllowReceiver);
+        if (!"root".equals(application.getMode())
+                && !sharedPreferences.getBoolean(BreventConfiguration.BREVENT_ALLOW_ROOT, false)) {
             breventExperimental.removePreference(preferenceAllowRoot);
             preferenceScreen.findPreference("brevent_about_version")
                     .setOnPreferenceClickListener(this);
         }
+        if (BuildConfig.RELEASE) {
+            double donation = application.getDonation();
+            if (donation > 0) {
+                preferenceDonation.setSummary(getString(R.string.show_donation_rmb,
+                        new DecimalFormat("#.##").format(donation)));
+                preferenceOptimizeVpn.setEnabled(true);
+                preferenceAbnormalBack.setEnabled(true);
+            }
+            if (donation >= BreventSettings.donateAmount() * 5) {
+                preferenceOptimizeVpn.setEnabled(true);
+                preferenceAbnormalBack.setEnabled(true);
+                preferenceAllowRoot.setEnabled(true);
+            } else if (!application.hasPlay()) {
+                preferenceAllowRoot.setEnabled(false);
+                preferenceAllowRoot.setChecked(false);
+                showDonate();
+            }
+        }
         onUpdateBreventMethod();
+    }
+
+    public void showDonate() {
+        if (Log.isLoggable(UILog.TAG, Log.DEBUG)) {
+            UILog.d("show " + FRAGMENT_DONATE);
+        }
+        AppsDonateFragment fragment = (AppsDonateFragment) getFragmentManager()
+                .findFragmentByTag(FRAGMENT_DONATE);
+        if (fragment != null) {
+            fragment.dismiss();
+        }
+        fragment = new AppsDonateFragment();
+        fragment.show(getFragmentManager(), FRAGMENT_DONATE);
     }
 
     @Override
@@ -149,33 +182,67 @@ public class SettingsFragment extends PreferenceFragment
         ((DonateActivity) getActivity()).showDonation(showDonation);
     }
 
-    public void updatePlayDonation(int count, int total, boolean contributor) {
+    public void updatePlayDonation(int total, boolean contributor) {
         if (getActivity() == null) {
             return;
         }
         String summary;
-        if (count == 1) {
-            if (contributor) {
-                summary = getString(R.string.show_donation_play_one_and_contributor, total);
+        double donation = ((BreventApplication) getActivity().getApplication()).getDonation();
+        String rmb = donation > 0 ? new DecimalFormat("#.##").format(donation) : "";
+        boolean hasAlipay = !TextUtils.isEmpty(rmb);
+        if (contributor) {
+            if (total > 0) {
+                if (hasAlipay) {
+                    summary = getString(R.string.show_donation_play_and_rmb_and_contributor,
+                            total, rmb);
+                } else {
+                    summary = getString(R.string.show_donation_play_and_contributor, total);
+                }
             } else {
-                summary = getString(R.string.show_donation_play_one, total);
+                if (hasAlipay) {
+                    summary = getString(R.string.show_donation_rmb_and_contributor, rmb);
+                } else {
+                    summary = getString(R.string.show_donation_contributor);
+                }
             }
-            preferenceDonation.setSummary(summary);
-        } else if (count > 1) {
-            if (contributor) {
-                summary = getString(R.string.show_donation_play_multi_and_contributor, count, total);
+
+        } else {
+            if (total > 0) {
+                if (hasAlipay) {
+                    summary = getString(R.string.show_donation_play_and_rmb,
+                            total, rmb);
+                } else {
+                    summary = getString(R.string.show_donation_play, total);
+                }
             } else {
-                summary = getString(R.string.show_donation_play_multi, count, total);
+                if (hasAlipay) {
+                    summary = getString(R.string.show_donation_rmb, rmb);
+                } else {
+                    summary = null;
+                }
             }
-            preferenceDonation.setSummary(summary);
-        } else if (contributor) {
-            preferenceDonation.setSummary(R.string.show_donation_contributor);
         }
+        if (summary != null) {
+            preferenceDonation.setSummary(summary);
+        }
+        int count = total + (contributor ? BreventSettings.CONTRIBUTOR : 0);
         if (getArguments().getBoolean(IS_PLAY, false)) {
-            if (contributor) {
-                total += BreventSettings.CONTRIBUTOR;
+            updatePlayVersion(count);
+        } else {
+            if (donation > 0) {
+                count += (int) (donation / 5);
             }
-            updatePlayVersion(total);
+            if (count < BreventSettings.donateAmount()) {
+                preferenceOptimizeVpn.setEnabled(true);
+                preferenceAbnormalBack.setEnabled(true);
+                preferenceAllowRoot.setEnabled(false);
+                preferenceAllowRoot.setChecked(false);
+                showDonate();
+            } else {
+                preferenceOptimizeVpn.setEnabled(true);
+                preferenceAbnormalBack.setEnabled(true);
+                preferenceAllowRoot.setEnabled(true);
+            }
         }
     }
 
@@ -187,28 +254,21 @@ public class SettingsFragment extends PreferenceFragment
             preferenceAbnormalBack.setChecked(false);
             preferenceAllowRoot.setEnabled(false);
             preferenceAllowRoot.setChecked(false);
-            preferenceAllowReceiver.setEnabled(false);
-            preferenceAllowReceiver.setChecked(false);
         } else if (total == 0x1) {
             preferenceOptimizeVpn.setEnabled(true);
             preferenceAbnormalBack.setEnabled(false);
             preferenceAbnormalBack.setChecked(false);
             preferenceAllowRoot.setEnabled(false);
             preferenceAllowRoot.setChecked(false);
-            preferenceAllowReceiver.setEnabled(false);
-            preferenceAllowReceiver.setChecked(false);
         } else if (total < BreventSettings.donateAmount()) {
             preferenceOptimizeVpn.setEnabled(true);
             preferenceAbnormalBack.setEnabled(true);
             preferenceAllowRoot.setEnabled(false);
             preferenceAllowRoot.setChecked(false);
-            preferenceAllowReceiver.setEnabled(false);
-            preferenceAllowReceiver.setChecked(false);
         } else {
             preferenceOptimizeVpn.setEnabled(true);
             preferenceAbnormalBack.setEnabled(true);
             preferenceAllowRoot.setEnabled(true);
-            preferenceAllowReceiver.setEnabled(true);
         }
     }
 
@@ -219,7 +279,6 @@ public class SettingsFragment extends PreferenceFragment
             if (++repeat == 0x7) {
                 getArguments().putBoolean(BreventConfiguration.BREVENT_ALLOW_ROOT, true);
                 breventExperimental.addPreference(preferenceAllowRoot);
-                breventExperimental.addPreference(preferenceAllowReceiver);
             }
         } else if ("brevent_about_developer".equals(key)) {
             Intent intent = new Intent();
@@ -239,8 +298,6 @@ public class SettingsFragment extends PreferenceFragment
         if (!getArguments().getBoolean(IS_PLAY, false)) {
             preferenceOptimizeVpn.setEnabled(true);
             preferenceAbnormalBack.setEnabled(true);
-            preferenceAllowRoot.setEnabled(true);
-            preferenceAllowReceiver.setEnabled(true);
         }
     }
 

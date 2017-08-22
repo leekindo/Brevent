@@ -53,30 +53,35 @@ public class AppsDisabledFragment extends DialogFragment
     }
 
     static boolean isEmulator() {
-        return SystemProperties.get("ro.kernel.qemu", Build.UNKNOWN).equals("1");
+        return "1".equals(SystemProperties.get("ro.kernel.qemu", Build.UNKNOWN));
     }
 
     private Dialog createDialog() {
-        AlertDialog.Builder builder = new AlertDialog.Builder(getActivity());
+        BreventActivity activity = (BreventActivity) getActivity();
+        AlertDialog.Builder builder = new AlertDialog.Builder(activity);
         builder.setIcon(R.mipmap.ic_launcher);
         Bundle arguments = getArguments();
         builder.setTitle(getString(arguments.getInt(TITLE, DEFAULT_TITLE),
                 BuildConfig.VERSION_NAME));
-        boolean adbRunning = SystemProperties.get("init.svc.adbd", Build.UNKNOWN).equals("running");
+        boolean adbRunning = "running".equals(SystemProperties.get("init.svc.adbd", Build.UNKNOWN));
         String adbStatus = adbRunning ? getString(R.string.brevent_service_adb_running) : "";
         IntentFilter filter = new IntentFilter(HideApiOverride.ACTION_USB_STATE);
-        Intent intent = getActivity().registerReceiver(null, filter);
+        Intent intent = activity.registerReceiver(null, filter);
         boolean usb = intent != null && intent.getBooleanExtra(HideApiOverride.USB_CONNECTED, false);
         arguments.putBoolean(USB_CONNECTED, usb);
         String commandLine = getBootstrapCommandLine();
         String usbStatus = usb ? getString(R.string.brevent_service_usb_connected) : "";
         builder.setMessage(getString(R.string.brevent_service_guide,
                 adbStatus, usbStatus, commandLine));
-        builder.setNeutralButton(R.string.menu_guide, this);
+        if (activity.canFetchLogs()) {
+            builder.setNeutralButton(R.string.menu_logs, this);
+        } else {
+            builder.setNeutralButton(R.string.menu_guide, this);
+        }
         if (allowRoot()) {
             builder.setNegativeButton(R.string.brevent_service_run_as_root, this);
         } else {
-            if (adbRunning) {
+            if (usb) {
                 builder.setPositiveButton(R.string.brevent_service_copy_path, this);
             } else {
                 builder.setPositiveButton(R.string.brevent_service_open_development, this);
@@ -113,6 +118,8 @@ public class AppsDisabledFragment extends DialogFragment
                 sb.append("adb -e shell ");
             } else if (isConnected()) {
                 sb.append("adb -d shell ");
+            } else {
+                sb.append("adb shell ");
             }
             sb.append("sh ");
             sb.append(path);
@@ -128,26 +135,34 @@ public class AppsDisabledFragment extends DialogFragment
         if (activity == null) {
             // do nothing
         } else if (which == DialogInterface.BUTTON_POSITIVE) {
-            boolean adbRunning = SystemProperties.get("init.svc.adbd", "").equals("running");
-            if (adbRunning) {
+            IntentFilter filter = new IntentFilter(HideApiOverride.ACTION_USB_STATE);
+            Intent intent = getActivity().registerReceiver(null, filter);
+            boolean usb = intent != null && intent.getBooleanExtra(HideApiOverride.USB_CONNECTED,
+                    false);
+            if (usb) {
                 String commandLine = getBootstrapCommandLine();
                 activity.copy(commandLine);
                 String message = getString(R.string.brevent_service_command_copied, commandLine);
                 Toast.makeText(activity, message, Toast.LENGTH_LONG).show();
             } else {
-                Intent intent = new Intent();
+                intent = new Intent();
                 intent.setComponent(new ComponentName("com.android.settings",
                         "com.android.settings.DevelopmentSettings"));
                 intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
                 try {
                     startActivity(intent);
+                    getActivity().finish();
                 } catch (ActivityNotFoundException e) {
                     UILog.d("Can't find settings", e);
                 }
             }
             activity.showDisabled(getArguments().getInt(TITLE, DEFAULT_TITLE), true);
         } else if (which == DialogInterface.BUTTON_NEUTRAL) {
-            activity.openGuide();
+            if (activity.canFetchLogs()) {
+                activity.fetchLogs();
+            } else {
+                activity.openGuide("disabled");
+            }
             dismiss();
         } else if (which == DialogInterface.BUTTON_NEGATIVE) {
             activity.runAsRoot();

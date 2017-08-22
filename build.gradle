@@ -1,9 +1,14 @@
 buildscript {
     repositories {
         jcenter()
+        maven {
+            url 'https://maven.fabric.io/public'
+        }
     }
     dependencies {
         classpath 'com.android.tools.build:gradle:2.3.3'
+        // https://maven.fabric.io/public/io/fabric/tools/gradle/maven-metadata.xml
+        classpath 'io.fabric.tools:gradle:1.23.0'
     }
 }
 
@@ -12,6 +17,9 @@ allprojects {
         jcenter()
         maven {
             url "https://dl.google.com/dl/android/maven2"
+        }
+        maven {
+            url 'https://maven.fabric.io/public'
         }
     }
 }
@@ -34,17 +42,21 @@ def getBreventVersion = { ->
 
 project.ext.abiFilters = ['armeabi', 'arm64-v8a', 'x86', 'x86_64']
 
-project.ext.supportLibraryVersion = '25.4.0'
+project.ext.supportLibraryVersion = '26.0.0'
 
-project.ext.buildToolsVersion = '26.0.0'
+project.ext.buildToolsVersion = '26.0.1'
 
 project.ext.minSdkVersion = 21
 
 project.ext.targetSdkVersion = 26
 
-project.ext.versionCode = 61
+project.ext.versionCode = 75
 
-project.ext.simpleVersionName = getBreventVersion()
+if (rootProject.file('.git').exists()) {
+    project.ext.simpleVersionName = getBreventVersion()
+} else {
+    project.ext.simpleVersionName = 'brevent'
+}
 
 project.ext.versionName = project.ext.simpleVersionName
 
@@ -52,7 +64,7 @@ if (rootProject.file('ant.properties').exists()) {
     Properties properties = new Properties()
     properties.load(new FileInputStream(rootProject.file('ant.properties')))
     if (properties['build.codename'] != null) {
-        project.ext.versionName = properties['build.codename'] + "(" + getBreventVersion() + ")"
+        project.ext.versionName = properties['build.codename'] + "(" + project.ext.simpleVersionName + ")"
     }
 }
 

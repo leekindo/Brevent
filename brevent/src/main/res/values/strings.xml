@@ -9,10 +9,10 @@
 
     <string name="fragment_guide_permission">Permissions</string>
     <string name="fragment_guide_permission_message">What do you need to do? \nJust a simple command with your PC.</string>
-    <string name="fragment_guide_permission_message2">Some similar apps require ROOT access or modifying your unlocked device. Debugging mode doesn\'t require ROOT access nor unlocking, so it\'s much safer to use. \n\nThere is an experimental ROOT mode, allowing you to skip turning on debugging mode. You can press Back 7 times on \"Please start Brevent service\" page to \"Run as Root\", or press \"Version\" 7 times in \"Settings\" to show experimental ROOT mode. ROOT mode is unsafe and unnecessary, we do not offer support for those who prefer ROOT mode.</string>
+    <string name="fragment_guide_permission_message2">Some similar apps require ROOT access or modifying your unlocked device. Debugging mode doesn\'t require ROOT access nor unlocking, so it\'s much safer to use. \n\nThere is an experimental ROOT mode, allowing you to skip turning on debugging mode. You can press Back 7 times on \"Please start Brevent server\" page to \"Run as Root\", or press \"Version\" 7 times in \"Settings\" to show experimental ROOT mode. Brevent server may not work well in ROOT mode.</string>
 
     <string name="fragment_guide_security">Security</string>
-    <string name="fragment_guide_security_message">We need debugging mode to launch our Brevent without rooting your device. However, debugging mode is not safe enough, we strongly recommend you turn it off after Brevent service is started successfully.</string>
+    <string name="fragment_guide_security_message">We need debugging mode to launch our Brevent without rooting your device. However, debugging mode is not safe enough, we strongly recommend you turn it off after Brevent server is started successfully.</string>
     <string name="fragment_guide_security_message2">Brevent uses plenty of Android\'s hidden APIs. Some third-party ROMs may modify these APIs, so there would be some issues when using.</string>
 
     <string name="fragment_guide_enjoy">Enjoy</string>
@@ -25,16 +25,16 @@
 
     <string name="start_brevent">Start Brevent</string>
 
-    <string name="brevent_service_start">Please start Brevent service (%s)</string>
-    <string name="brevent_service_no_response">Brevent Service no response (%s)</string>
-    <string name="brevent_service_guide">1. Turn on \"Developer options\", enable \"USB debugging\" %1$s\n\n2. Connect to PC via USB %2$s, or read \"Guide - Permissions\" to run as ROOT (experimental)\n\n3. Execute in PC\'s command line \"adb devices\", make sure PC can find device (Reader \"Guide - ADB\")\n\n4. Execute in PC\'s command line \"%3$s\"</string>
+    <string name="brevent_service_start">Please start Brevent server (%s)</string>
+    <string name="brevent_service_no_response">Brevent server no response (%s)</string>
+    <string name="brevent_service_guide">1. Turn on \"Developer options\", enable \"USB debugging\" %1$s\n\n2. Connect to PC via USB %2$s\n\n3. Execute in PC\'s command line \"adb devices\", make sure PC can find device (Reader \"Guide - ADB\")\n\n4. Execute in PC\'s command line \"%3$s\"</string>
     <string name="brevent_service_open_development">Developer options</string>
     <string name="brevent_service_copy_path">Copy command</string>
     <string name="brevent_service_command_copied">Command copied: %s</string>
     <string name="brevent_service_adb_running">(Enabled)</string>
     <string name="brevent_service_usb_connected">(USB connected)</string>
     <string name="brevent_service_run_as_root">Run as ROOT</string>
-    <string name="brevent_service_success">Brevent service started successfully. Please click app icons to choose them and brevent them</string>
+    <string name="brevent_service_success">Brevent server started successfully. Please click app icons to choose then brevent them</string>
 
     <string name="fragment_apps_user">User Apps</string>
     <string name="fragment_apps_system">System Apps</string>
@@ -42,7 +42,10 @@
 
     <string name="process_retrieving">Retrieving processes status, just a moment. . .</string>
     <string name="process_retrieving_apps">Retrieving apps, just a moment. . .</string>
+    <string name="process_retrieving_logs">Retrieving logs, just a moment. . .</string>
     <string name="process_waiting">Waiting events, please open then close notification to make events. . .</string>
+    <string name="process_starting">Starting Brevent server, just a moment. . .</string>
+    <string name="process_checking">Checking Brevent server, just a moment. . .</string>
 
     <string name="process_status_running">Running</string>
     <string name="process_status_standby">Standby</string>
@@ -96,6 +99,7 @@
 
     <string name="menu_feedback">Feedback</string>
     <string name="menu_settings">Settings</string>
+    <string name="menu_logs">Logs</string>
     <string name="menu_guide">Guide</string>
 
     <string name="feedback_message">Feel free to feedback.\n\nIf you have a GitHub account, please create an issue; you can view opened issues too.%s</string>
@@ -117,11 +121,9 @@
     <string name="brevent_timeout_label">Background apps will be brevented after %s\n\nBrevent shows inactive time for background apps dynamically</string>
     <string name="brevent_timeout_1min">1 minute</string>
     <string name="brevent_timeout_5min">5 minutes</string>
-    <string name="brevent_timeout_10min">10 minutes</string>
     <string name="brevent_timeout_15min">15 minutes</string>
     <string name="brevent_timeout_30min">30 minutes</string>
     <string name="brevent_timeout_1hour">1 hour</string>
-    <string name="brevent_timeout_2hour">2 hours</string>
     <string name="brevent_timeout_3hour">3 hours</string>
     <string name="brevent_timeout_6hour">6 hours</string>
     <string name="brevent_timeout_999999">11.5 days</string>
@@ -131,8 +133,8 @@
     <string name="brevent_advanced">Advanced Features</string>
     <string name="brevent_check_notification">Check notifications</string>
     <string name="brevent_check_notification_label">Only turn off if device freeze when unlocking or viewing notification</string>
-    <string name="brevent_when_request">Brevent immediately</string>
-    <string name="brevent_when_request_label">Brevent immediately. Normally, Brevent server delays the processes according to the event level\n\nBe careful</string>
+    <string name="brevent_aggressive">Aggressive mode</string>
+    <string name="brevent_aggressive_label">Brevent immediately, auto-brevent non-service apps, force-stop safe apps.\n\nBe careful</string>
     <string name="show_framework_apps">Show framework apps</string>
     <string name="show_framework_apps_label">All apps have the same signature with framework\n\nBe careful when breventing framework apps</string>
     <string name="show_all_apps">Show all apps</string>
@@ -140,25 +142,29 @@
 
     <string name="brevent_experimental">Experimental Features</string>
     <string name="brevent_optimize_vpn">Optimize VPN</string>
-    <string name="brevent_optimize_vpn_label">When checked, connected VPN won\'t be standby nor force-stopped\n\nRequires donate total 1 USD for Play version</string>
+    <string name="brevent_optimize_vpn_label">When checked, connected VPN won\'t be standby nor force-stopped\n\nRequires donate total 2 USD for Play version</string>
+    <string name="brevent_optimize_vpn_label_debug">When checked, connected VPN won\'t be standby nor force-stopped</string>
     <string name="brevent_abnormal_back">Recognize abnormal Back</string>
-    <string name="brevent_abnormal_back_label">Please click Home 7 times to help Brevent make sure normal Home\n\nRequires donate total 2 USD for Play version</string>
+    <string name="brevent_abnormal_back_label">Some apps move background instead of exit when pressing Back\n\nRequires donate total 2 USD for Play version</string>
+    <string name="brevent_abnormal_back_label_debug">Some apps move background instead of exit when pressing Back</string>
     <string name="brevent_allow_root">Allow run as ROOT</string>
-    <string name="brevent_allow_root_label">When checked, allow ROOT to start Brevent service without \"USB Debugging\"\n\nRequires donate total 3 USD for Play version</string>
-    <string name="brevent_allow_receiver">Enable boot receiver</string>
-    <string name="brevent_allow_receiver_label">Start Brevent server when receives \"boot completed\"\n\nDepends on \"Allow run as ROOT\"</string>
+    <string name="brevent_allow_root_label">When checked, allow ROOT to start Brevent server without \"USB Debugging\"\n\nRequires donate total 3 USD or 15 RMB (via Alipay)</string>
+    <string name="brevent_allow_root_label_debug">When checked, allow ROOT to start Brevent server without \"USB Debugging\"</string>
 
     <string name="brevent_about">About</string>
-    <string name="show_donation">Show donation</string>
-    <string name="show_donation_play_one">Thanks for donating %d USD in Play Store</string>
-    <string name="show_donation_play_one_and_contributor">Thanks for donating %d USD in Play Store, and priceless contribution on Brevent</string>
-    <string name="show_donation_play_multi" tools:ignore="PluralsCandidate">Thanks for donating %1$d times total %2$d USD in Play Store</string>
-    <string name="show_donation_play_multi_and_contributor" tools:ignore="PluralsCandidate">Thanks for donating %1$d times total %2$d USD in Play Store, and priceless contribution on Brevent</string>
+    <string name="show_donation">Show payment</string>
+    <string name="show_donation_play">Thanks for paying %d USD in Play Store</string>
+    <string name="show_donation_rmb">Thanks for paying %s RMB</string>
     <string name="show_donation_contributor">Thanks for priceless contribution on Brevent</string>
+    <string name="show_donation_play_and_rmb">Thanks for paying %1$d USD in Play Store, %2$s RMB</string>
+    <string name="show_donation_play_and_contributor">Thanks for paying %d USD in Play Store, and priceless contribution on Brevent</string>
+    <string name="show_donation_rmb_and_contributor">Thanks for paying %s RMB, and priceless contribution on Brevent</string>
+    <string name="show_donation_play_and_rmb_and_contributor">Thanks for paying %1$d USD in Play Store, %2$s RMB, and priceless contribution on Brevent</string>
     <string name="brevent_about_version">Version</string>
     <string name="brevent_about_version_mode_normal">Normal mode</string>
     <string name="brevent_about_version_mode_root">ROOT mode (experimental)</string>
     <string name="brevent_about_version_summary">%1$s (%2$s), %3$s\nDaemon: %4$s\nServer: %5$s</string>
+    <string name="brevent_about_version_summary_debug">%1$s\nNo donation, No support</string>
     <string name="brevent_about_version_play">Play</string>
     <string name="brevent_about_version_meizu">Meizu</string>
     <string name="brevent_about_version_smartisan">Smartisan</string>
@@ -174,11 +180,31 @@
     <string name="unsupported_signature">Brevent is cracked.</string>
     <string name="unsupported_xposed">Brevent is only available without Xposed.</string>
     <string name="unsupported_path">(Error: cannot make brevent.sh)</string>
-    <string name="unsupported_permission">No permission to access Brevent Server.</string>
+    <string name="unsupported_permission">No permission to access Brevent server.</string>
     <string name="unsupported_no_event">No event log. Please try later or reboot.</string>
+    <string name="unsupported_version_mismatched">Brevent server is upgrading. Please try later.</string>
+    <string name="unsupported_logs">Cannot get logs. Please try later.</string>
+    <string name="unsupported_disable_root">Brevent server started as ROOT successfully. Please enable \"Allow run as ROOT\" in settings to auto-upgrade Brevent server and start on boot.</string>
+    <string name="unsupported_root">Fail to start Brevent server as ROOT.</string>
+    <string name="unsupported_shell">Fail to start Brevent server.</string>
+    <string name="unsupported_no_local_network">Brevent can\'t access local network.</string>
+    <string name="unsupported_dumpsys">Can\'t execute dumpsys, please disable SELinux or contact provider of SU.</string>
 
     <string name="toast_home_tid">Recognized real Home: %d</string>
     <string name="toast_add_package">Brevented \"%1$s\", total %2$d</string>
-    <string name="toast_alipay">Thanks for donating %2$s RMB via Alipay in %1$d month</string>
+    <string name="toast_alipay">Thanks for paying %2$s RMB via Alipay in %1$d month</string>
+    <string name="toast_donate">Thanks for paying %1$s RMB</string>
+
+    <string name="logs_description">%1$s\n(Please give a description for the logs.)</string>
+
+    <string name="brevent_status_starting">Starting Brevent server</string>
+    <string name="brevent_status_stopped">Brevent server is not started</string>
+
+    <string name="root_donate_required">Please pay to use \"Allow run as ROOT\".\n\nIf you have payed, please open Alipay, click Records, it should be recognized automatically.\n\nIf it cannot be recognized, or payed via non Alipay, please send Email with screenshots of payment details.</string>
+    <string name="root_donate_alipay">open Alipay</string>
+    <string name="root_donate_email">Email</string>
+    <string name="root_donate_later">Later</string>
+    <string name="root_donate_email_subject">Payment verify (%s)</string>
+    <string name="root_donate_email_text">(Please attach screenshots of payment details.)</string>
 
 </resources>

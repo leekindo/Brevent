@@ -6,8 +6,12 @@ import android.content.Intent;
 import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
+import android.preference.PreferenceManager;
 import android.widget.Toast;
 
+import java.text.DecimalFormat;
+
+import me.piebridge.brevent.BuildConfig;
 import me.piebridge.brevent.R;
 import me.piebridge.brevent.protocol.BreventIntent;
 
@@ -34,11 +38,21 @@ public class BreventServerReceiver extends BroadcastReceiver {
                         label, size);
                 Toast.makeText(context, message, Toast.LENGTH_LONG).show();
             }
-        } else if (BreventIntent.ACTION_ALIPAY.equals(action)) {
+        } else if (BreventIntent.ACTION_ALIPAY.equals(action) && BuildConfig.RELEASE) {
+            BreventApplication application = (BreventApplication) context.getApplicationContext();
+            if (application.isUnsafe()) {
+                return;
+            }
             int count = intent.getIntExtra(BreventIntent.EXTRA_ALIPAY_COUNT, 0);
             String sum = intent.getStringExtra(BreventIntent.EXTRA_ALIPAY_SUM);
+            double donation = application.decode(sum, true);
+            DecimalFormat df = new DecimalFormat("#.##");
             String message = context.getResources().getString(R.string.toast_alipay,
-                    count, sum);
+                    count, df.format(donation));
+            if (donation > 0) {
+                PreferenceManager.getDefaultSharedPreferences(context)
+                        .edit().putString("alipay1", sum).apply();
+            }
             Toast.makeText(context, message, Toast.LENGTH_LONG).show();
         }
     }

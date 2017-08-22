@@ -9,9 +9,9 @@ import android.content.Intent;
 import android.content.IntentSender;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
-import android.content.pm.ResolveInfo;
 import android.content.res.Resources;
 import android.graphics.Bitmap;
+import android.graphics.drawable.AdaptiveIconDrawable;
 import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.Drawable;
 import android.net.Uri;
@@ -46,7 +46,7 @@ import java.util.Iterator;
 import java.util.List;
 
 /**
- * Donate activity, support alipay, wechat, paypal, play store
+ * Donate activity, support alipay, wechat, play store
  * <p>
  * Created by thom on 2017/2/9.
  */
@@ -55,8 +55,6 @@ public abstract class DonateActivity extends Activity implements View.OnClickLis
     public static final String PACKAGE_ALIPAY = "com.eg.android.AlipayGphone";
 
     public static final String PACKAGE_WECHAT = "com.tencent.mm";
-
-    public static final String PACKAGE_PAYPAL = "com.paypal.android.p2pmobile";
 
     public static final String PACKAGE_PLAY = "com.android.vending";
 
@@ -153,8 +151,13 @@ public abstract class DonateActivity extends Activity implements View.OnClickLis
                     thread.getLooper(), this);
             Intent serviceIntent = new Intent(PlayServiceConnection.ACTION_BIND);
             serviceIntent.setPackage(PACKAGE_PLAY);
-            if (!bindService(serviceIntent, activateConnection, Context.BIND_AUTO_CREATE)) {
-                unbindService(activateConnection);
+            try {
+                if (!bindService(serviceIntent, activateConnection, Context.BIND_AUTO_CREATE)) {
+                    unbindService(activateConnection);
+                }
+            } catch (IllegalArgumentException e) {
+                Log.d(TAG, "cannot bind activateConnection", e);
+            } finally {
                 activateConnection = null;
             }
         } else if (isPlay()) {
@@ -207,8 +210,6 @@ public abstract class DonateActivity extends Activity implements View.OnClickLis
             donateViaAlipay();
         } else if (id == R.id.wechat) {
             donateViaWechat();
-        } else if (id == R.id.paypal) {
-            donateViaPaypal();
         } else if (id == R.id.play) {
             donateViaPlay();
         }
@@ -232,7 +233,7 @@ public abstract class DonateActivity extends Activity implements View.OnClickLis
         Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(getAlipayLink()));
         intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP |
                 Intent.FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS);
-        startDonateActivity(intent);
+        startDonateActivity(intent, "alipay");
     }
 
     private void donateViaWechat() {
@@ -259,18 +260,6 @@ public abstract class DonateActivity extends Activity implements View.OnClickLis
 
     void hideWechat() {
         findViewById(R.id.wechat).setVisibility(View.GONE);
-    }
-
-    private void donateViaPaypal() {
-        Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(getPaypalLink()));
-        intent.addCategory(Intent.CATEGORY_BROWSABLE);
-        Intent browser = new Intent(Intent.ACTION_VIEW, Uri.parse("http://"));
-        ResolveInfo resolveInfo = getPackageManager()
-                .resolveActivity(browser, PackageManager.MATCH_DEFAULT_ONLY);
-        if (resolveInfo != null) {
-            intent.setPackage(resolveInfo.activityInfo.packageName);
-        }
-        startDonateActivity(intent);
     }
 
     private boolean mayHasPermission(String permission) {
@@ -360,7 +349,7 @@ public abstract class DonateActivity extends Activity implements View.OnClickLis
         }
     }
 
-    void startDonateActivity(Intent intent) {
+    protected void startDonateActivity(Intent intent, String type) {
         showDonateDialog();
         try {
             startActivity(intent);
@@ -383,13 +372,10 @@ public abstract class DonateActivity extends Activity implements View.OnClickLis
         }
     }
 
-    private void activateDonations() {
+    protected void activateDonations() {
         Collection<DonateItem> items = new ArrayList<>(0x3);
         if (!TextUtils.isEmpty(getAlipayLink())) {
             checkPackage(items, R.id.alipay, PACKAGE_ALIPAY);
-        }
-        if (!TextUtils.isEmpty(getPaypalLink())) {
-            checkPackage(items, R.id.paypal, PACKAGE_PAYPAL);
         }
         boolean canSupportWechat = mayHasPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE);
         if (canSupportWechat && !TextUtils.isEmpty(getWechatLink())) {
@@ -420,8 +406,6 @@ public abstract class DonateActivity extends Activity implements View.OnClickLis
     }
 
     protected abstract String getAlipayLink();
-
-    protected abstract String getPaypalLink();
 
     protected abstract String getWechatLink();
 
@@ -635,6 +619,17 @@ public abstract class DonateActivity extends Activity implements View.OnClickLis
         Drawable icon;
         CharSequence label;
         TextView textView;
+    }
+
+    static BitmapDrawable bitmap(Drawable drawable) {
+        if (drawable instanceof BitmapDrawable) {
+            return (BitmapDrawable) drawable;
+        } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O
+                && drawable instanceof AdaptiveIconDrawable) {
+            return bitmap(((AdaptiveIconDrawable) drawable).getForeground());
+        } else {
+            return null;
+        }
     }
 
 }

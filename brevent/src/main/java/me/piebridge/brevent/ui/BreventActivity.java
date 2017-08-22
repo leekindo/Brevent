@@ -1,5 +1,6 @@
 package me.piebridge.brevent.ui;
 
+import android.Manifest;
 import android.accessibilityservice.AccessibilityServiceInfo;
 import android.app.ActionBar;
 import android.app.Activity;
@@ -16,6 +17,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.SharedPreferences;
+import android.content.pm.ActivityInfo;
 import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
@@ -28,6 +30,9 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.Message;
+import android.os.Parcelable;
+import android.os.RemoteException;
+import android.os.ServiceManager;
 import android.preference.PreferenceManager;
 import android.provider.Settings;
 import android.support.annotation.CallSuper;
@@ -37,30 +42,42 @@ import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 import android.support.design.widget.CoordinatorLayout;
 import android.support.design.widget.Snackbar;
+import android.support.v4.content.FileProvider;
 import android.support.v4.util.ArraySet;
 import android.support.v4.util.SimpleArrayMap;
 import android.support.v4.view.ViewPager;
+import android.support.v4.widget.SwipeRefreshLayout;
 import android.telecom.TelecomManager;
 import android.util.Log;
 import android.util.SparseIntArray;
 import android.view.Menu;
 import android.view.MenuItem;
+import android.view.MotionEvent;
 import android.view.View;
 import android.view.accessibility.AccessibilityManager;
 import android.widget.Toolbar;
 
+import com.android.internal.statusbar.IStatusBarService;
+import com.crashlytics.android.answers.Answers;
+import com.crashlytics.android.answers.ContentViewEvent;
+
 import java.io.File;
+import java.io.PrintWriter;
+import java.io.StringWriter;
 import java.lang.reflect.InvocationTargetException;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Locale;
 import java.util.Set;
 
 import dalvik.system.PathClassLoader;
+import io.fabric.sdk.android.Fabric;
 import me.piebridge.brevent.BuildConfig;
 import me.piebridge.brevent.R;
 import me.piebridge.brevent.override.HideApiOverride;
@@ -74,7 +91,8 @@ import me.piebridge.brevent.protocol.BreventPriority;
 import me.piebridge.brevent.protocol.BreventProtocol;
 import me.piebridge.brevent.protocol.BreventResponse;
 
-public class BreventActivity extends Activity implements ViewPager.OnPageChangeListener {
+public class BreventActivity extends Activity
+        implements ViewPager.OnPageChangeListener, SwipeRefreshLayout.OnRefreshListener {
 
     private static final int DELAY = 1000;
 
@@ -98,8 +116,9 @@ public class BreventActivity extends Activity implements ViewPager.OnPageChangeL
     public static final int MESSAGE_BREVENT_RESPONSE = 2;
     public static final int MESSAGE_BREVENT_NO_RESPONSE = 3;
     public static final int MESSAGE_BREVENT_REQUEST = 4;
-    public static final int MESSAGE_RETRIEVE3 = 5;
-    public static final int MESSAGE_ROOT_COMPLETED = 6;
+    public static final int MESSAGE_ROOT_COMPLETED = 5;
+    public static final int MESSAGE_LOGS = 6;
+    public static final int MESSAGE_REMOVE_ADB = 7;
 
     public static final int UI_MESSAGE_SHOW_PROGRESS = 0;
     public static final int UI_MESSAGE_HIDE_PROGRESS = 1;
@@ -115,6 +134,13 @@ public class BreventActivity extends Activity implements ViewPager.OnPageChangeL
     public static final int UI_MESSAGE_NO_EVENT = 11;
     public static final int UI_MESSAGE_NO_PERMISSION = 12;
     public static final int UI_MESSAGE_MAKE_EVENT = 13;
+    public static final int UI_MESSAGE_LOGS = 14;
+    public static final int UI_MESSAGE_ROOT_COMPLETED = 15;
+    public static final int UI_MESSAGE_SHELL_COMPLETED = 16;
+    public static final int UI_MESSAGE_SHOW_PROGRESS_ADB = 17;
+    public static final int UI_MESSAGE_CHECKING_BREVENT = 18;
+    public static final int UI_MESSAGE_NO_LOCAL_NETWORK = 19;
+    public static final int UI_MESSAGE_CHECKED_BREVENT = 20;
 
     public static final int IMPORTANT_INPUT = 0;
     public static final int IMPORTANT_ALARM = 1;
@@ -133,14 +159,13 @@ public class BreventActivity extends Activity implements ViewPager.OnPageChangeL
     public static final int IMPORTANT_WALLPAPER = 14;
 
     private static final String FRAGMENT_DISABLED = "disabled";
-
     private static final String FRAGMENT_PROGRESS = "progress";
-
     private static final String FRAGMENT_PROGRESS_APPS = "progress_apps";
-
     private static final String FRAGMENT_FEEDBACK = "feedback";
-
     private static final String FRAGMENT_UNSUPPORTED = "unsupported";
+    private static final String FRAGMENT_REPORT = "report";
+    private static final String FRAGMENT_PROGRESS2 = "progress2";
+    private static final String FRAGMENT_ROOT = "root";
 
     private static final int REQUEST_CODE_SETTINGS = 1;
 
@@ -191,9 +216,14 @@ public class BreventActivity extends Activity implements ViewPager.OnPageChangeL
 
     private final Object updateLock = new Object();
 
+    private boolean notificationEventMade;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        if (BuildConfig.RELEASE) {
+            Fabric.with(getApplicationContext(), new Answers());
+        }
         boolean disabledXposed = !BuildConfig.RELEASE;
         if (BuildConfig.SERVER != null) {
             String clazzServer = String.valueOf(BuildConfig.SERVER);
@@ -231,8 +261,8 @@ public class BreventActivity extends Activity implements ViewPager.OnPageChangeL
             showUnsupported(R.string.unsupported_clone);
         } else if (PreferenceManager.getDefaultSharedPreferences(this)
                 .getBoolean(BreventGuide.GUIDE, true)) {
-            openGuide();
-            finish();
+            openGuide("first");
+            super.finish();
         } else {
             setContentView(R.layout.activity_brevent);
 
@@ -242,6 +272,18 @@ public class BreventActivity extends Activity implements ViewPager.OnPageChangeL
 
             mPager = findViewById(R.id.pager);
             mPager.addOnPageChangeListener(this);
+            mPager.setOnTouchListener(new View.OnTouchListener() {
+                @Override
+                public boolean onTouch(View v, MotionEvent event) {
+                    setRefreshEnabled(false);
+                    switch (event.getAction()) {
+                        case MotionEvent.ACTION_UP:
+                            setRefreshEnabled(true);
+                            break;
+                    }
+                    return false;
+                }
+            });
             mPager.setVisibility(View.INVISIBLE);
 
             uiHandler = new AppsActivityUIHandler(this);
@@ -254,7 +296,15 @@ public class BreventActivity extends Activity implements ViewPager.OnPageChangeL
             mColorControlHighlight = ColorUtils.resolveColor(this,
                     android.R.attr.colorControlHighlight);
 
-            mHandler.sendEmptyMessage(MESSAGE_RETRIEVE);
+            uiHandler.sendEmptyMessage(BreventActivity.UI_MESSAGE_SHOW_PROGRESS);
+        }
+    }
+
+    @Override
+    protected void onRestart() {
+        super.onRestart();
+        if (uiHandler != null && ((BreventApplication) getApplication()).isRunningAsRoot()) {
+            uiHandler.sendEmptyMessage(BreventActivity.UI_MESSAGE_SHOW_PROGRESS);
         }
     }
 
@@ -263,10 +313,37 @@ public class BreventActivity extends Activity implements ViewPager.OnPageChangeL
                 getIntent().getIntExtra(String.valueOf(BuildConfig.FLYME_CLONE), 0) != 0;
     }
 
-    private void showUnsupported(int resId) {
+    public void showUnsupported(int resId) {
+        showUnsupported(resId, false);
+    }
+
+    public void showUnsupported(int resId, boolean exit) {
         UnsupportedFragment fragment = new UnsupportedFragment();
         fragment.setMessage(resId);
         fragment.show(getFragmentManager(), FRAGMENT_UNSUPPORTED);
+        if (exit) {
+            mHandler.removeCallbacksAndMessages(null);
+            uiHandler.removeCallbacksAndMessages(null);
+        }
+    }
+
+    public void showRoot() {
+        hideDisabled();
+        hideProgress();
+        if (Log.isLoggable(UILog.TAG, Log.DEBUG)) {
+            UILog.d("show " + FRAGMENT_ROOT + ", stopped: " + isStopped());
+        }
+        if (isStopped()) {
+            return;
+        }
+        AppsRootFragment fragment = (AppsRootFragment) getFragmentManager()
+                .findFragmentByTag(FRAGMENT_ROOT);
+        if (fragment != null) {
+            fragment.dismiss();
+        }
+        fragment = new AppsRootFragment();
+        fragment.show(getFragmentManager(), FRAGMENT_ROOT);
+        mHandler.sendEmptyMessage(MESSAGE_RETRIEVE2);
     }
 
     private boolean verifySignature() {
@@ -330,19 +407,6 @@ public class BreventActivity extends Activity implements ViewPager.OnPageChangeL
         }
     }
 
-    @Override
-    protected void onRestart() {
-        super.onRestart();
-        if (mHandler != null) {
-            if (((BreventApplication) getApplication()).isRunningAsRoot()) {
-                showProgress(R.string.process_retrieving);
-                mHandler.sendEmptyMessage(MESSAGE_RETRIEVE3);
-            } else {
-                mHandler.sendEmptyMessage(MESSAGE_RETRIEVE2);
-            }
-        }
-    }
-
     public void showDisabled() {
         hideProgress();
         showDisabled(R.string.brevent_service_start);
@@ -375,6 +439,9 @@ public class BreventActivity extends Activity implements ViewPager.OnPageChangeL
             fragment.update(title);
             fragment.show(getFragmentManager(), FRAGMENT_DISABLED);
         }
+        if (hasResponse) {
+            mHandler.sendEmptyMessage(MESSAGE_RETRIEVE);
+        }
     }
 
     public void hideDisabled() {
@@ -402,6 +469,28 @@ public class BreventActivity extends Activity implements ViewPager.OnPageChangeL
         }
     }
 
+    public void showProcessChecking() {
+        if (Log.isLoggable(UILog.TAG, Log.DEBUG)) {
+            UILog.d("show " + FRAGMENT_PROGRESS2 + ", stopped: " + isStopped());
+        }
+        if (isStopped()) {
+            return;
+        }
+        hideDisabled();
+        ProgressFragment fragment = (ProgressFragment) getFragmentManager()
+                .findFragmentByTag(FRAGMENT_PROGRESS2);
+        if (fragment != null) {
+            fragment.dismiss();
+        }
+        fragment = new ProgressFragment();
+        fragment.updateMessage(R.string.process_checking);
+        fragment.show(getFragmentManager(), FRAGMENT_PROGRESS2);
+    }
+
+    public void hideProcessChecking() {
+        dismissDialog(FRAGMENT_PROGRESS2, false);
+    }
+
     public AppsProgressFragment showAppProgress() {
         if (Log.isLoggable(UILog.TAG, Log.DEBUG)) {
             UILog.d("show " + FRAGMENT_PROGRESS_APPS + ", stopped: " + isStopped());
@@ -418,7 +507,6 @@ public class BreventActivity extends Activity implements ViewPager.OnPageChangeL
         fragment.show(getFragmentManager(), FRAGMENT_PROGRESS_APPS);
         return fragment;
     }
-
 
     public void updateAppProgress(int progress, int max, int size) {
         if (isStopped()) {
@@ -457,18 +545,22 @@ public class BreventActivity extends Activity implements ViewPager.OnPageChangeL
     protected void onPostResume() {
         super.onPostResume();
         stopped = false;
+        if (mHandler != null) {
+            if (((BreventApplication) getApplication()).isRunningAsRoot()) {
+                mHandler.sendEmptyMessage(MESSAGE_RETRIEVE2);
+            } else {
+                mHandler.sendEmptyMessage(MESSAGE_RETRIEVE);
+            }
+        }
+        if (BuildConfig.RELEASE) {
+            ((BreventApplication) getApplication()).decodeFromClipboard();
+        }
     }
 
     @Override
     protected void onSaveInstanceState(Bundle outState) {
         stopped = true;
         super.onSaveInstanceState(outState);
-    }
-
-    private void dismissDialog() {
-        dismissDialog(FRAGMENT_DISABLED, true);
-        dismissDialog(FRAGMENT_PROGRESS, true);
-        dismissDialog(FRAGMENT_UNSUPPORTED, true);
     }
 
     private void dismissDialog(String tag, boolean allowStateLoss) {
@@ -587,6 +679,8 @@ public class BreventActivity extends Activity implements ViewPager.OnPageChangeL
         SparseIntArray status = mProcesses.get(packageName);
         if (isFavorite(packageName)) {
             return R.drawable.ic_favorite_border_black_24dp;
+        } else if (status != null && BreventResponse.isSafe(status)) {
+            return R.drawable.ic_panorama_fish_eye_black_24dp;
         } else if (BreventResponse.isStandby(status)) {
             return R.drawable.ic_snooze_black_24dp;
         } else if (BreventResponse.isRunning(status)) {
@@ -612,6 +706,9 @@ public class BreventActivity extends Activity implements ViewPager.OnPageChangeL
         if (!mSelectMode) {
             if (BuildConfig.RELEASE) {
                 menu.add(Menu.NONE, R.string.menu_feedback, Menu.NONE, R.string.menu_feedback);
+                if (canFetchLogs()) {
+                    menu.add(Menu.NONE, R.string.menu_logs, Menu.NONE, R.string.menu_logs);
+                }
             }
             menu.add(Menu.NONE, R.string.menu_guide, Menu.NONE, R.string.menu_guide);
             menu.add(Menu.NONE, R.string.menu_settings, Menu.NONE, R.string.menu_settings);
@@ -632,6 +729,12 @@ public class BreventActivity extends Activity implements ViewPager.OnPageChangeL
                     R.string.action_select_inverse);
         }
         return super.onCreateOptionsMenu(menu);
+    }
+
+    public boolean canFetchLogs() {
+        return BuildConfig.RELEASE && hasEmailClient(this) &&
+                getPackageManager().checkPermission(Manifest.permission.READ_LOGS,
+                        BuildConfig.APPLICATION_ID) == PackageManager.PERMISSION_GRANTED;
     }
 
     @Override
@@ -658,7 +761,10 @@ public class BreventActivity extends Activity implements ViewPager.OnPageChangeL
                 }
                 break;
             case R.string.menu_guide:
-                openGuide();
+                openGuide("menu");
+                break;
+            case R.string.menu_logs:
+                fetchLogs();
                 break;
             case R.string.menu_settings:
                 openSettings();
@@ -669,8 +775,22 @@ public class BreventActivity extends Activity implements ViewPager.OnPageChangeL
         return true;
     }
 
-    public void openGuide() {
+    public void fetchLogs() {
+        showProgress(R.string.process_retrieving_logs);
+        mHandler.sendEmptyMessage(MESSAGE_LOGS);
+    }
+
+    public void openGuide(String type) {
         startActivity(new Intent(this, BreventGuide.class));
+        if (BuildConfig.RELEASE) {
+            String installer = ((BreventApplication) getApplication()).getInstaller();
+            Answers.getInstance().logContentView(new ContentViewEvent()
+                    .putContentName("Guide")
+                    .putContentType(type)
+                    .putContentId("guide-" + type)
+                    .putCustomAttribute("installer", installer));
+            UILog.i("logContentView");
+        }
     }
 
     private void openFeedback() {
@@ -705,6 +825,11 @@ public class BreventActivity extends Activity implements ViewPager.OnPageChangeL
         super.onBackPressed();
     }
 
+    @Override
+    public void finish() {
+        super.finishAndRemoveTask();
+    }
+
     private void updateConfiguration() {
         SharedPreferences preferences = PreferenceManager.getDefaultSharedPreferences(this);
         BreventApplication application = (BreventApplication) getApplication();
@@ -714,28 +839,17 @@ public class BreventActivity extends Activity implements ViewPager.OnPageChangeL
                     .putString(BreventConfiguration.BREVENT_METHOD, "forcestop_only").apply();
         }
         BreventConfiguration configuration = new BreventConfiguration(preferences);
+        if (BuildConfig.RELEASE) {
+            configuration.androidId = application.getId();
+        }
         mHandler.obtainMessage(MESSAGE_BREVENT_REQUEST, configuration).sendToTarget();
 
-        ComponentName componentName = new ComponentName(this, BreventReceiver.class);
-        PackageManager packageManager = getPackageManager();
-        int componentEnabled = packageManager.getComponentEnabledSetting(componentName);
-        boolean allowReceiver = preferences.getBoolean(SettingsFragment.BREVENT_ALLOW_RECEIVER,
-                SettingsFragment.DEFAULT_BREVENT_ALLOW_RECEIVER);
-        if (configuration.allowRoot && allowReceiver) {
-            if (componentEnabled != PackageManager.COMPONENT_ENABLED_STATE_ENABLED) {
-                packageManager.setComponentEnabledSetting(componentName,
-                        PackageManager.COMPONENT_ENABLED_STATE_ENABLED, PackageManager.DONT_KILL_APP);
-            }
-        } else {
-            if (componentEnabled == PackageManager.COMPONENT_ENABLED_STATE_ENABLED) {
-                packageManager.setComponentEnabledSetting(componentName,
-                        PackageManager.COMPONENT_ENABLED_STATE_DISABLED,
-                        PackageManager.DONT_KILL_APP);
-            }
+        if (BuildConfig.RELEASE && "root".equals(application.getMode()) && !configuration.allowRoot) {
+            showRoot();
         }
     }
 
-    private void openSettings() {
+    public void openSettings() {
         Intent intent = new Intent(this, BreventSettings.class);
         startActivityForResult(intent, REQUEST_CODE_SETTINGS);
     }
@@ -858,6 +972,7 @@ public class BreventActivity extends Activity implements ViewPager.OnPageChangeL
         int action = response.getAction();
         switch (action) {
             case BreventProtocol.STATUS_RESPONSE:
+                collapsePanels();
                 uiHandler.removeMessages(UI_MESSAGE_MAKE_EVENT);
                 BreventApplication application = (BreventApplication) getApplication();
                 application.resetEvent();
@@ -872,22 +987,52 @@ public class BreventActivity extends Activity implements ViewPager.OnPageChangeL
             case BreventProtocol.STATUS_NO_EVENT:
                 onBreventNoEvent((BreventNoEvent) response);
                 break;
+            case BreventProtocol.SHOW_ROOT:
+                showRoot();
+                break;
             default:
                 break;
         }
     }
 
     private void onBreventNoEvent(BreventNoEvent response) {
-        if (response.mExit) {
-            showUnsupported(R.string.unsupported_no_event);
-            mHandler.removeCallbacksAndMessages(null);
-            uiHandler.removeCallbacksAndMessages(null);
+        if (response.versionMismatched()) {
+            showUnsupported(R.string.unsupported_version_mismatched, true);
+        } else if (response.mExit) {
+            showUnsupported(R.string.unsupported_no_event, true);
         } else {
             uiHandler.sendEmptyMessage(UI_MESSAGE_NO_EVENT);
-            mHandler.sendEmptyMessageDelayed(MESSAGE_RETRIEVE3, DELAY);
+            mHandler.sendEmptyMessageDelayed(MESSAGE_RETRIEVE2, DELAY);
+            expandNotificationsPanel();
             BreventApplication application = (BreventApplication) getApplication();
             if (!application.isEventMade()) {
                 uiHandler.sendEmptyMessageDelayed(UI_MESSAGE_MAKE_EVENT, DELAY5);
+            }
+        }
+    }
+
+    private void expandNotificationsPanel() {
+        if (!notificationEventMade) {
+            try {
+                IStatusBarService service = IStatusBarService.Stub
+                        .asInterface(ServiceManager.getService("statusbar"));
+                service.expandNotificationsPanel();
+                notificationEventMade = true;
+            } catch (RemoteException | RuntimeException | LinkageError e) {
+                UILog.d("Can't expandNotificationsPanel: " + e.getMessage(), e);
+            }
+        }
+    }
+
+    private void collapsePanels() {
+        if (notificationEventMade) {
+            try {
+                IStatusBarService service = IStatusBarService.Stub
+                        .asInterface(ServiceManager.getService("statusbar"));
+                service.collapsePanels();
+                notificationEventMade = false;
+            } catch (RemoteException | RuntimeException | LinkageError e) {
+                UILog.d("Can't collapsePanels: " + e.getMessage(), e);
             }
         }
     }
@@ -1005,16 +1150,17 @@ public class BreventActivity extends Activity implements ViewPager.OnPageChangeL
             breventPackages.undoable = false;
             mHandler.obtainMessage(MESSAGE_BREVENT_REQUEST, breventPackages).sendToTarget();
         }
-        makeDialerAndSms();
+        makePriority();
     }
 
-    private void makeDialerAndSms() {
+    private void makePriority() {
         if (mSms != null) {
             updatePriority(mSms);
         }
         if (mDialer != null) {
             updatePriority(mDialer);
         }
+        updatePriority(BuildConfig.APPLICATION_ID);
     }
 
     private void updatePriority(String packageName) {
@@ -1212,6 +1358,12 @@ public class BreventActivity extends Activity implements ViewPager.OnPageChangeL
         }
     }
 
+    public void setRefreshEnabled(boolean enabled) {
+        if (mAdapter != null) {
+            mAdapter.setRefreshEnabled(enabled);
+        }
+    }
+
     private boolean updateAdapter(AppsPagerAdapter adapter) {
         SharedPreferences sp = PreferenceManager.getDefaultSharedPreferences(this);
         boolean showAllApps = sp.getBoolean(SettingsFragment.SHOW_ALL_APPS,
@@ -1229,7 +1381,7 @@ public class BreventActivity extends Activity implements ViewPager.OnPageChangeL
     public void updateBreventResponse(BreventPackages breventPackages) {
         if (breventPackages.brevent) {
             mBrevent.addAll(breventPackages.packageNames);
-            makeDialerAndSms();
+            makePriority();
         } else {
             mBrevent.removeAll(breventPackages.packageNames);
         }
@@ -1303,7 +1455,7 @@ public class BreventActivity extends Activity implements ViewPager.OnPageChangeL
     public void runAsRoot() {
         BreventApplication application = (BreventApplication) getApplication();
         application.setHandler(mHandler);
-        showProgress(R.string.process_retrieving);
+        showProgress(R.string.process_starting);
         BreventIntentService.startBrevent(this, BreventIntent.ACTION_RUN_AS_ROOT);
     }
 
@@ -1393,7 +1545,7 @@ public class BreventActivity extends Activity implements ViewPager.OnPageChangeL
         // recreate has no appropriate event
         Intent intent = getIntent();
         overridePendingTransition(0, 0);
-        finish();
+        super.finish();
         overridePendingTransition(0, 0);
         intent.addFlags(Intent.FLAG_ACTIVITY_NO_ANIMATION);
         startActivity(intent);
@@ -1408,6 +1560,117 @@ public class BreventActivity extends Activity implements ViewPager.OnPageChangeL
     public void showNoEvent() {
         hideDisabled();
         showProgress(R.string.process_waiting);
+    }
+
+    public void onLogsCompleted(File path) {
+        if (path == null) {
+            showUnsupported(R.string.unsupported_logs);
+        } else {
+            sendEmail(this, path, getString(R.string.logs_description, Build.FINGERPRINT));
+        }
+    }
+
+    static Intent getEmailIntent() {
+        Intent intent = new Intent(Intent.ACTION_SENDTO);
+        intent.addCategory(Intent.CATEGORY_DEFAULT);
+        intent.setData(Uri.parse("mailto:"));
+        return intent;
+    }
+
+    static boolean hasEmailClient(Context context) {
+        return context.getPackageManager().resolveActivity(getEmailIntent(),
+                PackageManager.MATCH_DEFAULT_ONLY) != null;
+    }
+
+    private static String getSubject(Context context) {
+        return context.getString(R.string.app_name) + " " + BuildConfig.VERSION_NAME +
+                "(Android " + Locale.getDefault().toString() + "-" + Build.VERSION.RELEASE + ")";
+    }
+
+    public static void sendEmail(Context context, File path, String content) {
+        Intent intent = new Intent(Intent.ACTION_SEND);
+        intent.addCategory(Intent.CATEGORY_DEFAULT);
+        intent.setType("message/rfc822");
+        if (path != null) {
+            intent.putExtra(Intent.EXTRA_STREAM, FileProvider.getUriForFile(context,
+                    BuildConfig.APPLICATION_ID + ".fileprovider", path));
+        }
+        intent.putExtra(Intent.EXTRA_SUBJECT, getSubject(context));
+        intent.putExtra(Intent.EXTRA_TEXT, content);
+        intent.putExtra(Intent.EXTRA_EMAIL, new String[] {BuildConfig.EMAIL});
+        sendEmail(context, intent);
+    }
+
+    public static void sendEmail(Context context, Intent intent) {
+        Intent email = getEmailIntent();
+        PackageManager packageManager = context.getPackageManager();
+        Set<ComponentName> emails = new ArraySet<>();
+        for (ResolveInfo resolveInfo : packageManager.queryIntentActivities(email, 0)) {
+            ActivityInfo activityInfo = resolveInfo.activityInfo;
+            emails.add(new ComponentName(activityInfo.packageName, activityInfo.name));
+        }
+        List<ResolveInfo> rfc822 = packageManager.queryIntentActivities(intent, 0);
+        List<Intent> intents = new ArrayList<>();
+        for (ResolveInfo resolveInfo : rfc822) {
+            ActivityInfo activityInfo = resolveInfo.activityInfo;
+            ComponentName componentName = new ComponentName(activityInfo.packageName,
+                    activityInfo.name);
+            if (emails.contains(componentName)) {
+                intents.add(new Intent(intent).setComponent(componentName));
+            }
+        }
+        CharSequence title = context.getText(R.string.feedback_email);
+        if (intents.isEmpty()) {
+            context.startActivity(Intent.createChooser(intent, title));
+        } else {
+            Intent chooser = Intent.createChooser(intents.remove(0), title);
+            chooser.putExtra(Intent.EXTRA_INITIAL_INTENTS,
+                    intents.toArray(new Parcelable[intents.size()]));
+            context.startActivity(chooser);
+        }
+    }
+
+    @Override
+    public void onRefresh() {
+        if (mHandler != null) {
+            mHandler.sendEmptyMessage(MESSAGE_RETRIEVE2);
+        }
+    }
+
+    public void showRootCompleted(List<String> output) {
+        if (hasResponse) {
+            return;
+        }
+        hideDisabled();
+        hideProgress();
+        StringWriter sw = new StringWriter();
+        PrintWriter pw = new PrintWriter(sw);
+        for (String s : output) {
+            pw.println(s);
+        }
+        String message = sw.toString();
+        if (message.contains("dumpsys remote dead")) {
+            showUnsupported(R.string.unsupported_dumpsys, true);
+        } else {
+            ReportFragment fragment = new ReportFragment();
+            fragment.setDetails(R.string.unsupported_root, message);
+            fragment.show(getFragmentManager(), FRAGMENT_REPORT);
+            mHandler.removeCallbacksAndMessages(null);
+            uiHandler.removeCallbacksAndMessages(null);
+        }
+    }
+
+    public void showShellCompleted(String message) {
+        if (hasResponse) {
+            return;
+        }
+        hideDisabled();
+        hideProgress();
+        ReportFragment fragment = new ReportFragment();
+        fragment.setDetails(R.string.unsupported_shell, message);
+        fragment.show(getFragmentManager(), FRAGMENT_REPORT);
+        mHandler.removeCallbacksAndMessages(null);
+        uiHandler.removeCallbacksAndMessages(null);
     }
 
     private static class UsbConnectedReceiver extends BroadcastReceiver {

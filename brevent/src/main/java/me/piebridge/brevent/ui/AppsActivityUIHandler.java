@@ -3,7 +3,9 @@ package me.piebridge.brevent.ui;
 import android.os.Handler;
 import android.os.Message;
 
+import java.io.File;
 import java.lang.ref.WeakReference;
+import java.util.List;
 
 import me.piebridge.brevent.R;
 import me.piebridge.brevent.protocol.BreventPackages;
@@ -68,6 +70,29 @@ public class AppsActivityUIHandler extends Handler {
                 case BreventActivity.UI_MESSAGE_NO_PERMISSION:
                     activity.showNoPermission();
                     break;
+                case BreventActivity.UI_MESSAGE_LOGS:
+                    activity.hideProgress();
+                    activity.onLogsCompleted((File) message.obj);
+                    break;
+                case BreventActivity.UI_MESSAGE_ROOT_COMPLETED:
+                    List<String> output = (List<String>) message.obj;
+                    activity.showRootCompleted(output);
+                    break;
+                case BreventActivity.UI_MESSAGE_SHELL_COMPLETED:
+                    activity.showShellCompleted((String) message.obj);
+                    break;
+                case BreventActivity.UI_MESSAGE_SHOW_PROGRESS_ADB:
+                    activity.showProgress(R.string.process_starting);
+                    break;
+                case BreventActivity.UI_MESSAGE_CHECKING_BREVENT:
+                    activity.showProcessChecking();
+                    break;
+                case BreventActivity.UI_MESSAGE_NO_LOCAL_NETWORK:
+                    activity.showUnsupported(R.string.unsupported_no_local_network, true);
+                    break;
+                case BreventActivity.UI_MESSAGE_CHECKED_BREVENT:
+                    removeMessages(BreventActivity.UI_MESSAGE_CHECKING_BREVENT);
+                    activity.hideProcessChecking();
                 default:
                     break;
             }

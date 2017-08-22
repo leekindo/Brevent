@@ -2,8 +2,8 @@ package me.piebridge.brevent.ui;
 
 import android.app.ActionBar;
 import android.content.Intent;
+import android.content.IntentSender;
 import android.content.SharedPreferences;
-import android.content.pm.PackageManager;
 import android.os.Build;
 import android.os.Bundle;
 import android.preference.PreferenceManager;
@@ -13,9 +13,14 @@ import android.view.MenuItem;
 import android.view.View;
 import android.widget.Toolbar;
 
+import com.crashlytics.android.answers.AddToCartEvent;
+import com.crashlytics.android.answers.Answers;
+
+import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Currency;
 import java.util.List;
 
 import me.piebridge.brevent.BuildConfig;
@@ -44,7 +49,7 @@ public class BreventSettings extends DonateActivity implements View.OnClickListe
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_settings);
 
-        mPlay = checkPlay();
+        mPlay = ((BreventApplication) getApplication()).isPlay();
 
         Toolbar toolbar = findViewById(R.id.toolbar);
         setActionBar(toolbar);
@@ -70,11 +75,6 @@ public class BreventSettings extends DonateActivity implements View.OnClickListe
     @Override
     protected String getAlipayLink() {
         return BuildConfig.DONATE_ALIPAY;
-    }
-
-    @Override
-    protected String getPaypalLink() {
-        return BuildConfig.DONATE_PAYPAL;
     }
 
     @Override
@@ -116,7 +116,7 @@ public class BreventSettings extends DonateActivity implements View.OnClickListe
     public void showPlay(@Nullable Collection<String> purchased) {
         mTotal = 0;
         if (purchased == null) {
-            settingsFragment.updatePlayDonation(-1, -1, false);
+            settingsFragment.updatePlayDonation(0, false);
         } else {
             updatePlayDonation(purchased);
         }
@@ -129,14 +129,12 @@ public class BreventSettings extends DonateActivity implements View.OnClickListe
     }
 
     private void updatePlayDonation(Collection<String> purchased) {
-        int count = 0;
         int total = 0;
         boolean contributor = false;
         for (String p : purchased) {
             if (p.startsWith("contributor_")) {
                 contributor = true;
             } else {
-                count++;
                 int i = p.indexOf('_');
                 if (i > 0) {
                     String t = p.substring(i + 1);
@@ -150,7 +148,7 @@ public class BreventSettings extends DonateActivity implements View.OnClickListe
         if (contributor) {
             mTotal += CONTRIBUTOR;
         }
-        settingsFragment.updatePlayDonation(count, total, contributor);
+        settingsFragment.updatePlayDonation(total, contributor);
     }
 
     @Override
@@ -181,19 +179,44 @@ public class BreventSettings extends DonateActivity implements View.OnClickListe
         return skus;
     }
 
-    private boolean checkPlay() {
-        try {
-            Bundle bundle = getPackageManager().getApplicationInfo(BuildConfig.APPLICATION_ID,
-                    PackageManager.GET_META_DATA).metaData;
-            return bundle != null && bundle.containsKey("com.android.vending.derived.apk.id");
-        } catch (PackageManager.NameNotFoundException e) {
-            UILog.d("Can't get application for " + BuildConfig.APPLICATION_ID, e);
-            return false;
+    static int donateAmount() {
+        return Build.VERSION.SDK_INT >= Build.VERSION_CODES.O ? 0x4 : 0x3;
+    }
+
+    @Override
+    public void startDonateActivity(Intent intent, String type) {
+        super.startDonateActivity(intent, type);
+        logDonate(type);
+    }
+
+    @Override
+    public void donatePlay(IntentSender intentSender) {
+        super.donatePlay(intentSender);
+        logDonate("play");
+    }
+
+    private void logDonate(String type) {
+        if (BuildConfig.RELEASE) {
+            BreventApplication application = (BreventApplication) getApplication();
+            String installer = application.getInstaller();
+            String mode = application.getMode();
+            Answers.getInstance().logAddToCart(new AddToCartEvent()
+                    .putItemPrice(BigDecimal.ONE)
+                    .putCurrency(Currency.getInstance("USD"))
+                    .putItemName("Donate")
+                    .putItemType(type)
+                    .putItemId("donate-" + mode + "-" + type)
+                    .putCustomAttribute("mode", mode)
+                    .putCustomAttribute("installer", installer));
+            UILog.i("logAddToCart");
         }
     }
 
-    static int donateAmount() {
-        return Build.VERSION.SDK_INT >= Build.VERSION_CODES.O ? 0x4 : 0x3;
+    @Override
+    public void activateDonations() {
+        if (!((BreventApplication) getApplication()).isUnsafe()) {
+            super.activateDonations();
+        }
     }
 
 }

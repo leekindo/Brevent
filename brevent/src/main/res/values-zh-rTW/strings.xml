@@ -9,31 +9,32 @@
 
     <string name="fragment_guide_permission">權限</string>
     <string name="fragment_guide_permission_message">黑域需要在您每次開機以後，以偵錯模式執行一個指令開啟黑域服務，讓黑域間接的具備管理其它應用程式的權限。</string>
-    <string name="fragment_guide_permission_message2">其它類似軟體需要 ROOT 權限，或解鎖變更系統檔案以擁有這些權限。黑域所需的偵錯模式不需要 ROOT，也不需要解鎖，您可放心使用。\n\n目前也有一個實驗性的 ROOT 模式，可以直接「使用 ROOT 開啟」黑域服務，甚至直接啟動黑域服務。如需啟用，請在「啟動黑域服務」時點擊 7 次「返回」，或者進入「設定」點擊 7 次「版本」顯示並開啟實驗性功能。ROOT 模式不安全也沒必要，目前不提供任何支援。</string>
+    <string name="fragment_guide_permission_message2">其它類似軟體需要 ROOT 權限，或解鎖變更系統檔案以擁有這些權限。黑域所需的偵錯模式不需要 ROOT，也不需要解鎖，您可放心使用。\n\n目前也有一個實驗性的 ROOT 模式，可以直接「使用 ROOT 開啟」黑域服務，甚至直接開啟黑域服務。如需啟用，請在「開啟黑域服務」時點擊 7 次「返回」，或者進入「設定」點擊 7 次「版本」顯示並啟用實驗性功能。ROOT 模式可能無法正常開啟黑域服務。</string>
 
     <string name="fragment_guide_security">安全</string>
-    <string name="fragment_guide_security_message">黑域需要偵錯模式開啟黑域服務。但是偵錯模式比較危險，在啟動黑域服務後，如無特殊需要，請您關閉偵錯模式。</string>
+    <string name="fragment_guide_security_message">黑域需要偵錯模式開啟黑域服務。但是偵錯模式比較危險，在開啟黑域服務後，如無特殊需要，請您關閉偵錯模式。</string>
     <string name="fragment_guide_security_message2">黑域使用大量 Android 的隱藏 API，可能無法支援您的裝置。同時有些第三方系統可能改變這些隱藏 API 行為，對裝置造成未知影響。</string>
 
     <string name="fragment_guide_enjoy">使用</string>
     <string name="fragment_guide_enjoy_message">請盡情享受黑域，發現任何問題或有任何建議，敬請發送回饋。</string>
-    <string name="fragment_guide_enjoy_message2">黑域預設使用「待機」（App Standby）黑域應用程式，您可在設定中變更。如果您發現黑域處理後的應用程式還在執行，請使用黑域或者其它類似工具檢視是否處於「待機」狀態，或者「開發人員選項」的「未啟用的應用程式」中是否為「未啓用」。\n\n此外，為了降低自身耗電，黑域集中處理，根據事件級別延後 3 到 60 秒不等。</string>
+    <string name="fragment_guide_enjoy_message2">黑域預設使用「待機」（App Standby）黑域應用程式，您可在設定中變更。如果您發現黑域處理後的應用程式還在執行，請使用黑域或者其它類似工具檢視是否處於「待機」狀態，或者「開發人員選項」的「未啟用的應用程式」中是否為「未啟用」。 \n\n此外，為了降低自身耗電，黑域集中處理，根據事件級別延後 3 到 60 秒不等。
+    </string>
     <string name="start_brevent">進入黑域</string>
 
     <string name="fragment_guide_adb">ADB</string>
     <string name="fragment_guide_adb_message">ADB（Android Debug Bridge）是一個電腦與 Android 裝置進行通訊的命令提示工具。它是 platform-tools 的一部分，您可從 https://developer.android.com/studio/releases/platform-tools.html 下載（長按進入複製模式）。</string>
     <string name="fragment_guide_adb_message2">1. 解壓縮 platform-tools-latest-&lt;平台&gt;.zip\n\n2. 進入 platform-tools 資料夾\n\n3.（Windows）按住 Shift 鍵，點擊滑鼠右鍵，選擇「在此處開啟命令提示字元」，即可執行「.\\adb」\n\n3.（Mac OS X）開啟「Finder」，進入「應用程式」，進入「實用工具」，開啟「終端」，然後把「adb」拖曳到「終端」裡（使用「複製指令」時，請刪除重複的「adb」）\n\n4. 每次開機都需要重新輸入上述 ADB 的指令，請謹慎重新開機及避免關機</string>
 
-    <string name="brevent_service_start">請啟動黑域服務（%s）</string>
+    <string name="brevent_service_start">請開啟黑域服務（%s）</string>
     <string name="brevent_service_no_response">黑域服務沒有響應（%s）</string>
-    <string name="brevent_service_guide">1. 開啟「開發人員選項」，啟用「USB偵錯」%1$s\n\n2. 使用 USB 連線到電腦%2$s，或認真閱讀「指引 - 權限」使用 ROOT 開啟（實驗性）\n\n3. 在電腦的命令提示字元中執行「adb devices」，確認可以找到手機（請參考「指引 - ADB」）\n\n4. 在命令提示字元中執行「%3$s」</string>
+    <string name="brevent_service_guide">1. 打開「開發人員選項」，啟用「USB偵錯」%1$s\n\n2. 使用 USB 連線到電腦%2$s\n\n3. 在電腦的命令提示字元中執行「adb devices」，確認可以找到手機（請參考「指引 - ADB」）\n\n4. 在命令提示字元中執行「%3$s」</string>
     <string name="brevent_service_open_development">開發人員選項</string>
     <string name="brevent_service_copy_path">複製指令</string>
     <string name="brevent_service_command_copied">指令已複製: %s</string>
     <string name="brevent_service_adb_running">（已啟用）</string>
     <string name="brevent_service_usb_connected">（已連線）</string>
     <string name="brevent_service_run_as_root">使用 ROOT 開啟</string>
-    <string name="brevent_service_success">黑域服務已成功啟動。請點擊圖示，選擇一些應用程式，然後黑域它們</string>
+    <string name="brevent_service_success">黑域服務已成功開啟。請點擊圖示，選擇一些應用程式，然後黑域它們</string>
 
     <string name="fragment_apps_user">使用者</string>
     <string name="fragment_apps_system">系統</string>
@@ -41,7 +42,10 @@
 
     <string name="process_retrieving">正在取得應用程式的狀態，請稍候. . .</string>
     <string name="process_retrieving_apps">正在取得應用程式訊息，請稍候. . .</string>
+    <string name="process_retrieving_logs">正在取得日誌，請稍候. . .</string>
     <string name="process_waiting">正在等待事件日誌，請查看然後關閉通知以觸發事件. . .</string>
+    <string name="process_starting">正在開啟黑域服務，請稍候……</string>
+    <string name="process_checking">正在检查黑域服务，请稍候……</string>
 
     <string name="process_status_running">正在執行</string>
     <string name="process_status_standby">已經待機</string>
@@ -90,11 +94,12 @@
     <string name="important_battery">%s（無法待機，電池未最佳化）</string>
     <string name="important_trust_agent">%s（信任的代理程式）</string>
     <string name="important_gms">%s（GMS）</string>
-    <string name="important_wallpaper">%s（壁纸）</string>
+    <string name="important_wallpaper">%s（牆紙）</string>
 
     <string name="menu_feedback">回饋</string>
     <string name="menu_settings">設定</string>
     <string name="menu_guide">指引</string>
+    <string name="menu_logs">日誌</string>
 
     <string name="feedback_message">歡迎傳送回饋。\n\n如果您有 GitHub 帳號，請直接建立一個問題；您也可以檢視其他朋友已經建立的問題。%s</string>
     <string name="feedback_message_email">\n\n如果您的回饋包含私人訊息，請傳送郵件。</string>
@@ -108,18 +113,16 @@
     <string name="brevent_method_standby_forcestop">待機，然後強制停止</string>
     <string name="brevent_method_standby_only">只待機，不強制停止</string>
     <string name="brevent_method_forcestop_only">只強制停止，不待機</string>
-    <string name="brevent_method_standby_forcestop_label">退出應用程式（如點擊「返回」按钮），或者背景應用程式逾時後先待命；待命逾時或者從最近使用的應用程式拉掉後強制停止\n\n針對被喚醒但没有打開界面的應用程式，一律強制停止</string>
-    <string name="brevent_method_standby_only_label">退出應用程式（如點擊「返回」按钮），或者背景應用程式逾時後待命\n\n針對被喚醒但没有打開界面的應用程式，一律強制停止</string>
-    <string name="brevent_method_forcestop_only_label">退出應用程式（如點擊「返回」按钮），或者背景應用程式逾時，或者從最近使用的應用程式拉掉後強制停止\n\n針對被喚醒但没有打開界面的應用程式，一律強制停止</string>
+    <string name="brevent_method_standby_forcestop_label">退出應用程式（如點擊「返回」按鈕），或者背景應用程式逾時後先待命；待命逾時或者從最近使用的應用程式拉掉後強制停止\n\n針對被喚醒但沒有打開界面的應用程式，一律強制停止</string>
+    <string name="brevent_method_standby_only_label">退出應用程式（如點擊「返回」按鈕），或者背景應用程式逾時後待命\n\n針對被喚醒但有打開界面的應用程式，一律強制停止</string>
+    <string name="brevent_method_forcestop_only_label">退出應用程式（如點擊「返回」按鈕），或者背景應用程式逾時，或者從最近使用的應用程式拉掉後強制停止\n\n針對被喚醒但沒有打開界面的應用程式，一律強制停止</string>
     <string name="brevent_timeout">背景應用程式逾時</string>
     <string name="brevent_timeout_label">離開背景應用程式 %1$s 後\n\n背景應用程式是指您還未結束的應用程式，主介面動態顯示離開時間</string>
     <string name="brevent_timeout_1min">1 分鐘</string>
     <string name="brevent_timeout_5min">5 分鐘</string>
-    <string name="brevent_timeout_10min">10 分鐘</string>
     <string name="brevent_timeout_15min">15 分鐘</string>
     <string name="brevent_timeout_30min">30 分鐘</string>
     <string name="brevent_timeout_1hour">1 小時</string>
-    <string name="brevent_timeout_2hour">2 小時</string>
     <string name="brevent_timeout_3hour">3 小時</string>
     <string name="brevent_timeout_6hour">6 小時</string>
     <string name="brevent_timeout_999999">11.5 天</string>
@@ -129,8 +132,8 @@
     <string name="brevent_advanced">進階功能</string>
     <string name="brevent_check_notification">檢查通知</string>
     <string name="brevent_check_notification_label">僅在您的裝置上進行解鎖及檢視通知時有延遲現象，才需要關閉</string>
-    <string name="brevent_when_request">立即黑域</string>
-    <string name="brevent_when_request_label">立即黑域，而不是根據事件級別延後處理\n\n強迫症必備，請謹慎開啟</string>
+    <string name="brevent_aggressive">激進模式</string>
+    <string name="brevent_aggressive_label">立即黑域，自動黑域沒有服務應用程式，強制停止安全應用程式\n\n強迫症必備，請謹慎啟用</string>
     <string name="show_all_apps">顯示所有應用程式</string>
     <string name="show_all_apps_label">包括無法開啟的系統應用程式和框架應用程式\n\n請謹慎黑域系統應用程式或框架應用程式</string>
     <string name="show_framework_apps">顯示框架應用程式</string>
@@ -138,28 +141,32 @@
 
     <string name="brevent_experimental">實驗性功能</string>
     <string name="brevent_optimize_vpn">優化 VPN</string>
-    <string name="brevent_optimize_vpn_label">啓用之後，不處理已連線的 VPN 應用程式\n\nPlay 版需要捐贈 1 美元</string>
+    <string name="brevent_optimize_vpn_label">啟用之後，不處理已連線的 VPN 應用程式\n\nPlay 版需要支付 2 美元</string>
+    <string name="brevent_optimize_vpn_label_debug">啟用之後，不處理已連線的 VPN 應用程式</string>
     <string name="brevent_abnormal_back">識別非正常「返回」</string>
-    <string name="brevent_abnormal_back_label">請連按 7 次「首頁鍵」讓黑域確認正常「首頁鍵」\n\nPlay 版需要捐贈 2 美元</string>
+    <string name="brevent_abnormal_back_label">有些應用按「返回」時放到背景而不結束\n\nPlay 版需要支付 2 美元</string>
+    <string name="brevent_abnormal_back_label_debug">有些應用按「返回」時放到背景而不結束</string>
     <string name="brevent_allow_root">允許 ROOT 執行</string>
-    <string name="brevent_allow_root_label">啟用之後，允許 ROOT 過的裝置直接啟動黑域服務\n\nPlay 版需要捐贈 3 美元</string>
-    <string name="brevent_allow_receiver">開機啟動</string>
-    <string name="brevent_allow_receiver_label">開機完成後開啟黑域服務\n\n依賴「允許 ROOT 執行」</string>
+    <string name="brevent_allow_root_label">啟用之後，允許 ROOT 過的裝置直接開啟黑域服務\n\n需要支付 3 美元或 15 人民幣（僅支持支付寶）</string>
+    <string name="brevent_allow_root_label_debug">啟用之後，允許 ROOT 過的裝置直接開啟黑域服務</string>
 
     <string name="brevent_about">關於</string>
-    <string name="show_donation">顯示捐贈</string>
-    <string name="show_donation_play_one">感謝您透過 Play 商店捐贈 %d 美金</string>
-    <string name="show_donation_play_one_and_contributor">感謝您透過 Play 商店捐贈 %d 美金，以及爲黑域所作的特別貢獻</string>
-    <string name="show_donation_play_multi">感謝您透過 Play 商店捐贈 %1$d 次（共 %2$d 美金）</string>
-    <string name="show_donation_play_multi_and_contributor">感謝您透過 Play 商店捐贈 %1$d 次（共 %2$d 美金），以及爲黑域所作的特別貢獻</string>
-    <string name="show_donation_contributor">感謝您爲黑域所作的特別貢獻</string>
+    <string name="show_donation">顯示支付</string>
+    <string name="show_donation_play">感謝您透過 Play 商店支付 %d 美元</string>
+    <string name="show_donation_rmb">感謝您支付人民幣 %s 元</string>
+    <string name="show_donation_contributor">感謝您為黑域所作的特別貢獻</string>
+    <string name="show_donation_play_and_rmb">感謝您透過 Play 商店支付 %1$d 美元，人民幣 %2$s 元</string>
+    <string name="show_donation_play_and_contributor">感謝您透過 Play 商店支付 %d 美元，以及為黑域所作的特別貢獻</string>
+    <string name="show_donation_rmb_and_contributor">感謝您支付人民幣 %s 元，以及為黑域所作的特別貢獻</string>
+    <string name="show_donation_play_and_rmb_and_contributor">感謝您透過 Play 商店支付 %1$d 美元，人民幣 %2$s 元，以及為黑域所作的特別貢獻</string>
     <string name="brevent_about_version">版本</string>
     <string name="brevent_about_version_mode_normal">普通模式</string>
     <string name="brevent_about_version_mode_root">ROOT 模式（實驗性）</string>
-    <string name="brevent_about_version_summary">%1$s（%2$s），%3$s\n首次啓動：%4$s\n本次啓動：%5$s</string>
+    <string name="brevent_about_version_summary">%1$s（%2$s），%3$s\n首次開啟：%4$s\n本次開啟：%5$s</string>
+    <string name="brevent_about_version_summary_debug">%1$s\n没有捐赠，没有支持</string>
     <string name="brevent_about_version_play">Play 版</string>
     <string name="brevent_about_version_meizu">魅族版</string>
-    <string name="brevent_about_version_smartisan">锤子版</string>
+    <string name="brevent_about_version_smartisan">錘子版</string>
     <string name="brevent_about_version_other">其它版</string>
     <string name="brevent_about_developer">開發人員選項</string>
     <string name="brevent_about_developer_adb">已啟用「USB 偵錯」</string>
@@ -173,10 +180,30 @@
     <string name="unsupported_xposed">請禁用 Xposed 以便使用黑域。</string>
     <string name="unsupported_path">（錯誤：無法生成指令文件）</string>
     <string name="unsupported_permission">沒有權限訪問黑域服務。</string>
-    <string name="unsupported_no_event">黑域服務已經啓動，但是沒有事件日誌。請稍候重試，或者重啓手機。</string>
+    <string name="unsupported_no_event">黑域服務已經開啟，但是沒有事件日誌。請稍候重試，或者重啟手機。</string>
+    <string name="unsupported_version_mismatched">黑域服務正在升級，請稍候重試。</string>
+    <string name="unsupported_logs">無法取得日誌，請稍候重試。</string>
+    <string name="unsupported_disable_root">成功使用 ROOT 启动黑域服务，请在设置中启用“允许 ROOT 运行”以自动更新黑域服务及开机自启。</string>
+    <string name="unsupported_root">無法使用 ROOT 開啟黑域服務。</string>
+    <string name="unsupported_shell">無法開啟黑域服務。</string>
+    <string name="unsupported_no_local_network">黑域无法访问本地网络，请调整防火墙或网络设置。</string>
+    <string name="unsupported_dumpsys">无法执行 dumpsys，请禁用 SELinux，或者联系 SU 提供方。</string>
 
     <string name="toast_home_tid">已確認真正的「首頁鍵」：%d</string>
-    <string name="toast_add_package">成功黑域“%1$s”，共 %2$d 个</string>
-    <string name="toast_alipay">感谢您 %1$d 个月通过支付宝捐赠 %2$s 元</string>
+    <string name="toast_add_package">成功黑域「%1$s」，共 %2$d 個</string>
+    <string name="toast_alipay">感謝您 %1$d 個月透過支付寶支付 %2$s 元</string>
+    <string name="toast_donate">感謝您支付 %1$s 元</string>
+
+    <string name="logs_description">%1$s\n（請描述與日誌相關的問題。）</string>
+
+    <string name="brevent_status_starting">正在開啟黑域服務</string>
+    <string name="brevent_status_stopped">黑域服務沒有開啓</string>
+
+    <string name="root_donate_required">“允許 ROOT 執行”需要支付。\n\n如您已经支付，请打开“支付宝”，点开“转账记录”，将会自动识别。\n\n如果无法自动识别，或者其它方式支付，请发送邮件，附上支付订单截图。</string>
+    <string name="root_donate_alipay">打开“支付宝”</string>
+    <string name="root_donate_email">邮件</string>
+    <string name="root_donate_later">再看看</string>
+    <string name="root_donate_email_subject">支付确认（%s）</string>
+    <string name="root_donate_email_text">（请附上支付订单截图。）</string>
 
 </resources>

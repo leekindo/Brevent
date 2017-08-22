@@ -1,22 +1,36 @@
 package me.piebridge.brevent.ui;
 
+import android.accounts.NetworkErrorException;
 import android.app.NotificationManager;
 import android.content.Context;
 import android.os.Handler;
 import android.os.HandlerThread;
 import android.os.Looper;
 import android.os.Message;
+import android.os.SystemProperties;
 import android.support.annotation.WorkerThread;
+import android.text.TextUtils;
 
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.lang.ref.WeakReference;
 import java.net.ConnectException;
 import java.net.InetAddress;
 import java.net.Socket;
 import java.net.SocketTimeoutException;
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
+import java.util.Calendar;
+import java.util.Locale;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipOutputStream;
 
+import me.piebridge.brevent.BuildConfig;
 import me.piebridge.brevent.protocol.BreventProtocol;
 import me.piebridge.brevent.protocol.BreventRequest;
 
@@ -25,17 +39,33 @@ import me.piebridge.brevent.protocol.BreventRequest;
  */
 public class AppsActivityHandler extends Handler {
 
+    private static final String[][] LOGS = new String[][] {
+            {"system.txt", "-b system"},
+            {"events.txt", "-b events am_pss:s"},
+            {"brevent.txt", "-b main -s BreventServer BreventLoader BreventUI"}
+    };
+
     private static final long DELAY = 15000;
 
     private static final int TIMEOUT = 5000;
 
     private static final int RETRY = 1000;
 
+    private static final int SHORT = 250;
+
     private final Handler uiHandler;
 
     private final WeakReference<BreventActivity> mReference;
 
     private boolean hasResponse;
+
+    private String adb;
+
+    private boolean adbing;
+
+    private boolean adbChecked;
+
+    private Thread adbThread;
 
     public AppsActivityHandler(BreventActivity activity, Handler handler) {
         super(newLooper());
@@ -51,15 +81,23 @@ public class AppsActivityHandler extends Handler {
 
     @Override
     public void handleMessage(Message message) {
+        BreventActivity activity = mReference.get();
         switch (message.what) {
             case BreventActivity.MESSAGE_RETRIEVE:
-                UILog.d("request status");
-                uiHandler.sendEmptyMessage(BreventActivity.UI_MESSAGE_SHOW_PROGRESS);
-            case BreventActivity.MESSAGE_RETRIEVE2:
+                if (BuildConfig.RELEASE && !adbChecked && activity != null) {
+                    try {
+                        if (!checkPort()) {
+                            checkAdb(activity);
+                        }
+                    } catch (NetworkErrorException e) {
+                        break;
+                    }
+                }
                 removeMessages(BreventActivity.MESSAGE_BREVENT_NO_RESPONSE);
+                UILog.d("request status");
                 requestStatus(false);
                 break;
-            case BreventActivity.MESSAGE_RETRIEVE3:
+            case BreventActivity.MESSAGE_RETRIEVE2:
                 UILog.d("retry request status");
                 hasResponse = false;
                 requestStatus(true);
@@ -70,10 +108,9 @@ public class AppsActivityHandler extends Handler {
                     hasResponse = true;
                     hideNotification();
                 }
-                removeMessages(BreventActivity.MESSAGE_RETRIEVE3);
+                removeMessages(BreventActivity.MESSAGE_RETRIEVE2);
                 removeMessages(BreventActivity.MESSAGE_BREVENT_NO_RESPONSE);
                 BreventProtocol response = (BreventProtocol) message.obj;
-                BreventActivity activity = mReference.get();
                 if (activity != null && !activity.isStopped()) {
                     activity.onBreventResponse(response);
                 }
@@ -87,9 +124,114 @@ public class AppsActivityHandler extends Handler {
                 break;
             case BreventActivity.MESSAGE_ROOT_COMPLETED:
                 if (!hasResponse) {
-                    uiHandler.sendEmptyMessage(BreventActivity.UI_MESSAGE_NO_BREVENT);
+                    uiHandler.obtainMessage(BreventActivity.UI_MESSAGE_ROOT_COMPLETED, message.obj)
+                            .sendToTarget();
                 }
                 break;
+            case BreventActivity.MESSAGE_LOGS:
+                File path = null;
+                File dir;
+                if (activity != null && (dir = activity.getExternalFilesDir("logs")) != null) {
+                    DateFormat df = new SimpleDateFormat("yyyyMMdd.HHmm", Locale.US);
+                    String date = df.format(Calendar.getInstance().getTime());
+                    File cacheDir = activity.getCacheDir();
+                    try {
+                        for (String[] log : LOGS) {
+                            File file = new File(cacheDir, date + "." + log[0]);
+                            String command = "/system/bin/logcat -d -v threadtime -f "
+                                    + file.getPath() + " " + log[1];
+                            UILog.d("logcat for " + log[0]);
+                            Runtime.getRuntime().exec(command).waitFor();
+                        }
+                        Runtime.getRuntime().exec("sync").waitFor();
+                        path = zipLog(activity, dir, date);
+                    } catch (IOException | InterruptedException e) {
+                        UILog.w("Can't get logs", e);
+                    }
+                }
+                uiHandler.obtainMessage(BreventActivity.UI_MESSAGE_LOGS, path).sendToTarget();
+                break;
+            case BreventActivity.MESSAGE_REMOVE_ADB:
+                adbing = false;
+                adbThread.interrupt();
+                break;
+            default:
+                break;
+        }
+    }
+
+    private boolean checkPort() throws NetworkErrorException {
+        uiHandler.sendEmptyMessageDelayed(BreventActivity.UI_MESSAGE_CHECKING_BREVENT, SHORT);
+        try {
+            return BreventApplication.checkPort();
+        } catch (NetworkErrorException e) {
+            uiHandler.sendEmptyMessage(BreventActivity.UI_MESSAGE_NO_LOCAL_NETWORK);
+            throw e;
+        } finally {
+            uiHandler.sendEmptyMessage(BreventActivity.UI_MESSAGE_CHECKED_BREVENT);
+        }
+    }
+
+    private boolean checkAdb(BreventActivity activity) {
+        String port = SystemProperties.get("service.adb.tcp.port", "");
+        UILog.d("service.adb.tcp.port: " + port);
+        if (!TextUtils.isEmpty(port) && TextUtils.isDigitsOnly(port)) {
+            final int p = Integer.parseInt(port);
+            if (p > 0 && p <= 0xffff) {
+                adbing = true;
+                uiHandler.sendEmptyMessage(BreventActivity.UI_MESSAGE_SHOW_PROGRESS_ADB);
+                ((BreventApplication) activity.getApplication()).copyBrevent();
+                adbThread = new Thread(new Runnable() {
+                    @Override
+                    public void run() {
+                        try {
+                            adb = new SimpleAdb(p).run();
+                        } catch (IOException e) {
+                            UILog.d("Can't adb", e);
+                        } finally {
+                            adbing = false;
+                            if (!hasResponse) {
+                                uiHandler.sendEmptyMessage(BreventActivity.UI_MESSAGE_SHOW_PROGRESS);
+                            }
+                        }
+                    }
+                });
+                adbThread.start();
+                sendEmptyMessageDelayed(BreventActivity.MESSAGE_REMOVE_ADB, DELAY);
+                adbChecked = true;
+                return true;
+            }
+
+        }
+        return false;
+    }
+
+    private File zipLog(Context context, File dir, String date) {
+        try {
+            File path = new File(dir, "logs-v" + BuildConfig.VERSION_NAME + "-" + date + ".zip");
+            try (
+                    ZipOutputStream zos = new ZipOutputStream(new FileOutputStream(path))
+            ) {
+                for (String[] log : LOGS) {
+                    File file = new File(context.getCacheDir(), date + "." + log[0]);
+                    zos.putNextEntry(new ZipEntry(file.getName()));
+                    try (
+                            InputStream is = new FileInputStream(file)
+                    ) {
+                        int length;
+                        byte[] buffer = new byte[0x1000];
+                        while ((length = is.read(buffer)) > 0) {
+                            zos.write(buffer, 0, length);
+                        }
+                    }
+                    zos.closeEntry();
+                    file.delete();
+                }
+            }
+            return path;
+        } catch (IOException e) {
+            UILog.e("cannot report bug", e);
+            return null;
         }
     }
 
@@ -108,11 +250,22 @@ public class AppsActivityHandler extends Handler {
     }
 
     @WorkerThread
-    private void send(BreventProtocol message) {
+    private boolean send(BreventProtocol message) {
+        BreventActivity activity = mReference.get();
+        if (activity == null || activity.isStopped()) {
+            UILog.w("Can't send request now");
+            return false;
+        }
+        try {
+            checkPort();
+        } catch (NetworkErrorException e) {
+            return false;
+        }
         boolean timeout = false;
         int action = message.getAction();
-        try {
-            Socket socket = new Socket(InetAddress.getLoopbackAddress(), BreventProtocol.PORT);
+        try (
+                Socket socket = new Socket(InetAddress.getLoopbackAddress(), BreventProtocol.PORT);
+        ) {
             if (action == BreventProtocol.STATUS_REQUEST) {
                 socket.setSoTimeout(TIMEOUT);
             }
@@ -127,16 +280,27 @@ public class AppsActivityHandler extends Handler {
 
             DataInputStream is = new DataInputStream(socket.getInputStream());
             BreventProtocol response = BreventProtocol.readFrom(is);
-            obtainMessage(BreventActivity.MESSAGE_BREVENT_RESPONSE, response).sendToTarget();
-
             os.close();
             is.close();
-            socket.close();
+            if (response == null && !message.retry) {
+                message.retry = true;
+                send(message);
+            } else {
+                obtainMessage(BreventActivity.MESSAGE_BREVENT_RESPONSE, response).sendToTarget();
+            }
+            return true;
         } catch (ConnectException e) {
             hasResponse = false;
             UILog.v("cannot connect to localhost:" + BreventProtocol.PORT, e);
-            if (!message.retry) {
-                uiHandler.sendEmptyMessage(BreventActivity.UI_MESSAGE_NO_BREVENT);
+            UILog.d("adbing: " + adbing);
+            if (!adbing) {
+                if (adb != null) {
+                    uiHandler.obtainMessage(BreventActivity.UI_MESSAGE_SHELL_COMPLETED, adb)
+                            .sendToTarget();
+                    adb = null;
+                } else if (!((BreventApplication) activity.getApplication()).isRunningAsRoot()) {
+                    uiHandler.sendEmptyMessage(BreventActivity.UI_MESSAGE_NO_BREVENT);
+                }
             }
         } catch (SocketTimeoutException e) {
             timeout = true;
@@ -148,9 +312,10 @@ public class AppsActivityHandler extends Handler {
             uiHandler.obtainMessage(BreventActivity.UI_MESSAGE_IO_BREVENT, e).sendToTarget();
         }
         if (action == BreventProtocol.STATUS_REQUEST) {
-            sendEmptyMessageDelayed(BreventActivity.MESSAGE_RETRIEVE3,
+            sendEmptyMessageDelayed(BreventActivity.MESSAGE_RETRIEVE2,
                     (!timeout && AppsDisabledFragment.isEmulator()) ? TIMEOUT : RETRY);
         }
+        return false;
     }
 
 }
